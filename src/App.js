@@ -1,0 +1,647 @@
+import { useState, useRef } from "react";
+
+const COLORS = {
+  bg: "#0a0a0f",
+  card: "#12121a",
+  border: "#1e1e2e",
+  accent: "#ff3c3c",
+  accentGlow: "#ff3c3c44",
+  safe: "#00e57a",
+  safeGlow: "#00e57a33",
+  warn: "#ffaa00",
+  warnGlow: "#ffaa0033",
+  text: "#f0f0f8",
+  muted: "#6b6b8a",
+};
+
+const styles = `
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: ${COLORS.bg};
+    color: ${COLORS.text};
+    font-family: 'Space Grotesk', sans-serif;
+    min-height: 100vh;
+  }
+
+  .app {
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 20% 20%, #1a0a0a 0%, ${COLORS.bg} 60%);
+    padding: 0 16px 60px;
+  }
+
+  .noise {
+    position: fixed;
+    inset: 0;
+    opacity: 0.03;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 1;
+  }
+
+  .header {
+    padding: 48px 0 36px;
+    text-align: center;
+  }
+
+  .logo-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: ${COLORS.accentGlow};
+    border: 1px solid ${COLORS.accent}66;
+    border-radius: 100px;
+    padding: 6px 16px;
+    margin-bottom: 20px;
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: ${COLORS.accent};
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: ${COLORS.accent};
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+    box-shadow: 0 0 8px ${COLORS.accent};
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  h1 {
+    font-size: clamp(36px, 8vw, 64px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.03em;
+    margin-bottom: 12px;
+  }
+
+  .title-scam { color: ${COLORS.accent}; text-shadow: 0 0 40px ${COLORS.accentGlow}; }
+  .title-snap { color: ${COLORS.text}; }
+
+  .subtitle {
+    color: ${COLORS.muted};
+    font-size: 16px;
+    max-width: 400px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: ${COLORS.card};
+    border: 1px solid ${COLORS.border};
+    border-radius: 12px;
+    padding: 4px;
+    margin-bottom: 20px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: ${COLORS.muted};
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .tab.active {
+    background: ${COLORS.accent};
+    color: white;
+    box-shadow: 0 0 20px ${COLORS.accentGlow};
+  }
+
+  .tab:hover:not(.active) {
+    color: ${COLORS.text};
+    background: ${COLORS.border};
+  }
+
+  .card {
+    background: ${COLORS.card};
+    border: 1px solid ${COLORS.border};
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+  }
+
+  .input-label {
+    font-size: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    color: ${COLORS.muted};
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+    display: block;
+  }
+
+  textarea {
+    width: 100%;
+    background: ${COLORS.bg};
+    border: 1px solid ${COLORS.border};
+    border-radius: 10px;
+    color: ${COLORS.text};
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 14px;
+    resize: vertical;
+    min-height: 140px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  textarea:focus { border-color: ${COLORS.accent}66; }
+  textarea::placeholder { color: ${COLORS.muted}; }
+
+  input[type="text"] {
+    width: 100%;
+    background: ${COLORS.bg};
+    border: 1px solid ${COLORS.border};
+    border-radius: 10px;
+    color: ${COLORS.text};
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type="text"]:focus { border-color: ${COLORS.accent}66; }
+  input[type="text"]::placeholder { color: ${COLORS.muted}; }
+
+  .call-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+
+  .analyze-btn {
+    width: 100%;
+    padding: 16px;
+    background: ${COLORS.accent};
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.02em;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 4px 20px ${COLORS.accentGlow};
+  }
+
+  .analyze-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 30px ${COLORS.accentGlow};
+  }
+
+  .analyze-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  .loading-bar {
+    position: absolute;
+    bottom: 0; left: 0;
+    height: 3px;
+    background: rgba(255,255,255,0.5);
+    animation: loading 1.5s infinite;
+  }
+
+  @keyframes loading {
+    0% { width: 0%; left: 0; }
+    50% { width: 70%; left: 0; }
+    100% { width: 0%; left: 100%; }
+  }
+
+  .result-card {
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+    animation: slideUp 0.4s ease;
+    border: 1px solid;
+  }
+
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .result-card.scam {
+    background: linear-gradient(135deg, #1a0505, #120a0a);
+    border-color: ${COLORS.accent}66;
+    box-shadow: 0 0 40px ${COLORS.accentGlow};
+  }
+
+  .result-card.safe {
+    background: linear-gradient(135deg, #051a0f, #0a120d);
+    border-color: ${COLORS.safe}66;
+    box-shadow: 0 0 40px ${COLORS.safeGlow};
+  }
+
+  .result-card.suspicious {
+    background: linear-gradient(135deg, #1a1005, #12100a);
+    border-color: ${COLORS.warn}66;
+    box-shadow: 0 0 40px ${COLORS.warnGlow};
+  }
+
+  .verdict-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+
+  .verdict-icon {
+    font-size: 36px;
+    line-height: 1;
+  }
+
+  .verdict-label {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+
+  .verdict-title {
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+  }
+
+  .verdict-title.scam { color: ${COLORS.accent}; }
+  .verdict-title.safe { color: ${COLORS.safe}; }
+  .verdict-title.suspicious { color: ${COLORS.warn}; }
+
+  .risk-bar-container {
+    margin-bottom: 20px;
+  }
+
+  .risk-bar-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: ${COLORS.muted};
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 6px;
+  }
+
+  .risk-bar-track {
+    height: 6px;
+    background: ${COLORS.border};
+    border-radius: 100px;
+    overflow: hidden;
+  }
+
+  .risk-bar-fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 1s ease;
+  }
+
+  .section-title {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: ${COLORS.muted};
+    margin-bottom: 10px;
+  }
+
+  .explanation {
+    font-size: 15px;
+    line-height: 1.7;
+    color: ${COLORS.text};
+    margin-bottom: 20px;
+  }
+
+  .red-flags {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+
+  .flag-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    padding: 10px 14px;
+    background: rgba(255,255,255,0.03);
+    border-radius: 8px;
+    border-left: 3px solid;
+  }
+
+  .flag-item.bad { border-left-color: ${COLORS.accent}; }
+  .flag-item.warn { border-left-color: ${COLORS.warn}; }
+  .flag-item.good { border-left-color: ${COLORS.safe}; }
+
+  .action-box {
+    padding: 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  .action-box.scam { background: ${COLORS.accentGlow}; color: #ffaaaa; }
+  .action-box.safe { background: ${COLORS.safeGlow}; color: #aaffcc; }
+  .action-box.suspicious { background: ${COLORS.warnGlow}; color: #ffddaa; }
+
+  .how-it-works {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .step {
+    background: ${COLORS.card};
+    border: 1px solid ${COLORS.border};
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+
+  .step-num {
+    font-size: 24px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: ${COLORS.accent};
+    margin-bottom: 6px;
+  }
+
+  .step-text {
+    font-size: 12px;
+    color: ${COLORS.muted};
+    line-height: 1.5;
+  }
+
+  .error-box {
+    background: ${COLORS.accentGlow};
+    border: 1px solid ${COLORS.accent}44;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 14px;
+    color: #ffaaaa;
+    margin-bottom: 16px;
+  }
+
+  @media (max-width: 480px) {
+    .call-info { grid-template-columns: 1fr; }
+    .how-it-works { grid-template-columns: 1fr; }
+  }
+`;
+
+export default function ScamSnap() {
+  const [tab, setTab] = useState("text");
+  const [textInput, setTextInput] = useState("");
+  const [callerNumber, setCallerNumber] = useState("");
+  const [callerClaim, setCallerClaim] = useState("");
+  const [callDescription, setCallDescription] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState(null);
+
+  const analyze = async () => {
+    setLoading(true);
+    setResult(null);
+    setError(null);
+
+    let userPrompt = "";
+    if (tab === "text") {
+      userPrompt = `Analyze this message/email/link for scam indicators:\n\n"${textInput}"`;
+    } else {
+      userPrompt = `Analyze this phone call for scam indicators:
+Phone number: ${callerNumber || "Unknown/Hidden"}
+Caller claimed to be: ${callerClaim || "Not specified"}
+What happened / what they said: ${callDescription}`;
+    }
+
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-20250514",
+          max_tokens: 1000,
+          system: `You are ScamSnap, an expert scam detection AI. Analyze the input and return ONLY valid JSON with no markdown, no backticks, no extra text.
+
+Return this exact structure:
+{
+  "verdict": "SCAM" | "SUSPICIOUS" | "SAFE",
+  "riskScore": <number 0-100>,
+  "summary": "<one sentence verdict>",
+  "explanation": "<2-3 sentences explaining your analysis>",
+  "flags": [
+    { "type": "bad" | "warn" | "good", "text": "<specific flag>" }
+  ],
+  "action": "<what the person should do right now>"
+}
+
+Be direct, specific, and helpful. Include 3-5 flags. For SAFE verdicts still mention what to watch out for.`,
+          messages: [{ role: "user", content: userPrompt }]
+        })
+      });
+
+      const data = await response.json();
+      const text = data.content?.map(i => i.text || "").join("") || "";
+      const clean = text.replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(clean);
+      setResult(parsed);
+    } catch (err) {
+      setError("Analysis failed. Please try again.");
+    }
+
+    setLoading(false);
+  };
+
+  const canAnalyze = tab === "text"
+    ? textInput.trim().length > 10
+    : callDescription.trim().length > 10;
+
+  const verdictClass = result?.verdict?.toLowerCase() === "scam" ? "scam"
+    : result?.verdict?.toLowerCase() === "safe" ? "safe" : "suspicious";
+
+  const verdictIcon = result?.verdict === "SCAM" ? "🚨"
+    : result?.verdict === "SAFE" ? "✅" : "⚠️";
+
+  const riskColor = (result?.riskScore || 0) > 70 ? COLORS.accent
+    : (result?.riskScore || 0) > 40 ? COLORS.warn : COLORS.safe;
+
+  return (
+    <>
+      <style>{styles}</style>
+      <div className="noise" />
+      <div className="app">
+        <div className="container">
+          <div className="header">
+            <div className="logo-badge">
+              <div className="pulse-dot" />
+              AI-Powered Protection
+            </div>
+            <h1>
+              <span className="title-scam">Scam</span>
+              <span className="title-snap">Snap</span>
+            </h1>
+            <p className="subtitle">
+              Paste any suspicious message, email, link, or describe a call — we'll tell you if it's a scam instantly.
+            </p>
+          </div>
+
+          <div className="tabs">
+            <button className={`tab ${tab === "text" ? "active" : ""}`} onClick={() => { setTab("text"); setResult(null); }}>
+              💬 Text / Email / Link
+            </button>
+            <button className={`tab ${tab === "call" ? "active" : ""}`} onClick={() => { setTab("call"); setResult(null); }}>
+              📞 Phone Call
+            </button>
+          </div>
+
+          <div className="card">
+            {tab === "text" ? (
+              <>
+                <label className="input-label">Paste suspicious content</label>
+                <textarea
+                  placeholder={"Paste the suspicious text, email, DM, or URL here...\n\nExample: \"Congratulations! You've won a $1000 gift card. Click here to claim: bit.ly/xxx\""}
+                  value={textInput}
+                  onChange={e => setTextInput(e.target.value)}
+                />
+              </>
+            ) : (
+              <>
+                <div className="call-info">
+                  <div>
+                    <label className="input-label">Phone number (if shown)</label>
+                    <input type="text" placeholder="+1 (555) 000-0000 or Unknown" value={callerNumber} onChange={e => setCallerNumber(e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="input-label">Caller claimed to be</label>
+                    <input type="text" placeholder="e.g. IRS, Amazon, Bank..." value={callerClaim} onChange={e => setCallerClaim(e.target.value)} />
+                  </div>
+                </div>
+                <label className="input-label">What happened / what they said</label>
+                <textarea
+                  placeholder={"Describe what the caller said or asked...\n\nExample: \"They said my Social Security number was suspended and I need to pay $500 in gift cards to fix it or I'll be arrested\""}
+                  value={callDescription}
+                  onChange={e => setCallDescription(e.target.value)}
+                />
+              </>
+            )}
+
+            <div style={{ height: 12 }} />
+
+            <button className="analyze-btn" onClick={analyze} disabled={loading || !canAnalyze}>
+              {loading ? "Analyzing..." : "🔍 Analyze Now"}
+              {loading && <div className="loading-bar" />}
+            </button>
+          </div>
+
+          {error && <div className="error-box">⚠️ {error}</div>}
+
+          {result && (
+            <div className={`result-card ${verdictClass}`}>
+              <div className="verdict-header">
+                <div className="verdict-icon">{verdictIcon}</div>
+                <div>
+                  <div className="verdict-label" style={{ color: verdictClass === "scam" ? COLORS.accent : verdictClass === "safe" ? COLORS.safe : COLORS.warn }}>
+                    Verdict
+                  </div>
+                  <div className={`verdict-title ${verdictClass}`}>{result.verdict}</div>
+                </div>
+              </div>
+
+              <div className="risk-bar-container">
+                <div className="risk-bar-label">
+                  <span>Risk Score</span>
+                  <span style={{ color: riskColor }}>{result.riskScore}/100</span>
+                </div>
+                <div className="risk-bar-track">
+                  <div className="risk-bar-fill" style={{ width: `${result.riskScore}%`, background: riskColor }} />
+                </div>
+              </div>
+
+              <div className="section-title">Summary</div>
+              <p className="explanation">{result.explanation}</p>
+
+              {result.flags?.length > 0 && (
+                <>
+                  <div className="section-title">Red Flags & Signals</div>
+                  <div className="red-flags">
+                    {result.flags.map((flag, i) => (
+                      <div key={i} className={`flag-item ${flag.type}`}>
+                        <span>{flag.type === "bad" ? "🚩" : flag.type === "warn" ? "⚠️" : "✓"}</span>
+                        <span>{flag.text}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              <div className="section-title">What To Do</div>
+              <div className={`action-box ${verdictClass}`}>
+                {result.action}
+              </div>
+            </div>
+          )}
+
+          {!result && !loading && (
+            <div>
+              <p style={{ fontSize: 12, color: COLORS.muted, fontFamily: "'JetBrains Mono', monospace", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 12 }}>
+                How it works
+              </p>
+              <div className="how-it-works">
+                <div className="step">
+                  <div className="step-num">01</div>
+                  <div className="step-text">Paste text or describe your call</div>
+                </div>
+                <div className="step">
+                  <div className="step-num">02</div>
+                  <div className="step-text">AI analyzes for scam patterns</div>
+                </div>
+                <div className="step">
+                  <div className="step-num">03</div>
+                  <div className="step-text">Get instant verdict & what to do</div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
