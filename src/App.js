@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 
 const COLORS = {
   bg: "#0a0a0f",
@@ -453,13 +453,19 @@ What happened / what they said: ${callDescription}`;
     }
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.REACT_APP_GROQ_API_KEY}`
+        },
         body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
+          model: "llama-3.3-70b-versatile",
           max_tokens: 1000,
-          system: `You are ScamSnap, an expert scam detection AI. Analyze the input and return ONLY valid JSON with no markdown, no backticks, no extra text.
+          messages: [
+            {
+              role: "system",
+              content: `You are ScamSnap, an expert scam detection AI. Analyze the input and return ONLY valid JSON with no markdown, no backticks, no extra text.
 
 Return this exact structure:
 {
@@ -473,13 +479,15 @@ Return this exact structure:
   "action": "<what the person should do right now>"
 }
 
-Be direct, specific, and helpful. Include 3-5 flags. For SAFE verdicts still mention what to watch out for.`,
-          messages: [{ role: "user", content: userPrompt }]
+Be direct, specific, and helpful. Include 3-5 flags. For SAFE verdicts still mention what to watch out for.`
+            },
+            { role: "user", content: userPrompt }
+          ]
         })
       });
 
       const data = await response.json();
-      const text = data.content?.map(i => i.text || "").join("") || "";
+      const text = data.choices?.[0]?.message?.content || "";
       const clean = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       setResult(parsed);
