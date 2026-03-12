@@ -10,7 +10,8 @@ const saveToSupabase = async (content, verdict, scamType, platform) => {
       headers: {
         'Content-Type': 'application/json',
         'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Prefer': 'return=minimal'
       },
       body: JSON.stringify({ content, verdict, scam_type: scamType, platform })
     });
