@@ -499,7 +499,7 @@ Return this exact structure:
   "action": "<what the person should do right now>"
 }
 
-Be direct, specific, and helpful. Include 4-6 flags with specific details from the actual content. For SAFE verdicts still mention what to watch out for. Also return these extra fields: whyThisIsAScam (plain English explanation as if to a grandparent), scamType (e.g. Phishing, Prize Scam, Impersonation, Tech Support, Romance, Investment, Advance Fee, or Safe).`
+Be direct, specific, and helpful. Include 4-6 flags with specific details from the actual content. For SAFE verdicts still mention what to watch out for. Also return these extra fields: whyThisIsAScam (plain explanation as if to a grandparent), scamType (e.g. Phishing, Prize Scam, Impersonation, Tech Support, Romance, Investment, Advance Fee, or Safe). IMPORTANT: Detect the language of the input and respond in that same language. If the input is in Spanish, respond in Spanish. If Russian, respond in Russian. If Hindi, respond in Hindi. All fields in the JSON (summary, explanation, whyThisIsAScam, flags, action) must be in the same language as the input.`
             },
             { role: "user", content: userPrompt }
           ]
