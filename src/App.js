@@ -437,6 +437,7 @@ export default function ScamSnap() {
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
   const [followUp, setFollowUp] = useState("");
+  const [feedbackGiven, setFeedbackGiven] = useState(null);
   const [followUpAnswer, setFollowUpAnswer] = useState(null);
   const [followUpLoading, setFollowUpLoading] = useState(false);
 
@@ -444,6 +445,7 @@ export default function ScamSnap() {
     setLoading(true);
     setResult(null);
     setError(null);
+    setFeedbackGiven(null);
 
     let userPrompt = "";
     if (tab === "text") {
@@ -482,7 +484,7 @@ Return this exact structure:
   "action": "<what the person should do right now>"
 }
 
-Be direct, specific, and helpful. Include 3-5 flags. For SAFE verdicts still mention what to watch out for.`
+Be direct, specific, and helpful. Include 4-6 flags with specific details from the actual content. For SAFE verdicts still mention what to watch out for. Also return these extra fields: whyThisIsAScam (plain English explanation as if to a grandparent), scamType (e.g. Phishing, Prize Scam, Impersonation, Tech Support, Romance, Investment, Advance Fee, or Safe).`
             },
             { role: "user", content: userPrompt }
           ]
@@ -641,8 +643,43 @@ Be direct, specific, and helpful. Include 3-5 flags. For SAFE verdicts still men
                 </div>
               </div>
 
+              {result.scamType && (
+                <div style={{ marginBottom: 16 }}>
+                  <span style={{
+                    display: "inline-block",
+                    padding: "4px 12px",
+                    background: verdictClass === "scam" ? COLORS.accentGlow : verdictClass === "safe" ? COLORS.safeGlow : COLORS.warnGlow,
+                    borderRadius: 100,
+                    fontSize: 12,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    color: verdictClass === "scam" ? COLORS.accent : verdictClass === "safe" ? COLORS.safe : COLORS.warn,
+                    letterSpacing: "0.05em",
+                    textTransform: "uppercase"
+                  }}>
+                    🏷️ {result.scamType}
+                  </span>
+                </div>
+              )}
+
               <div className="section-title">Summary</div>
               <p className="explanation">{result.explanation}</p>
+
+              {result.whyThisIsAScam && (
+                <div style={{ marginBottom: 20 }}>
+                  <div className="section-title">Why This Is Dangerous</div>
+                  <div style={{
+                    padding: "14px 16px",
+                    background: "rgba(255,60,60,0.06)",
+                    borderRadius: 10,
+                    fontSize: 14,
+                    lineHeight: 1.7,
+                    color: COLORS.text,
+                    borderLeft: "3px solid " + COLORS.accent
+                  }}>
+                    {result.whyThisIsAScam}
+                  </div>
+                </div>
+              )}
 
               {result.flags?.length > 0 && (
                 <>
@@ -662,6 +699,35 @@ Be direct, specific, and helpful. Include 3-5 flags. For SAFE verdicts still men
               <div className={`action-box ${verdictClass}`}>
                 {result.action}
               </div>
+
+              <div style={{ height: 20 }} />
+              <div className="section-title">Was this analysis correct?</div>
+              {feedbackGiven === null ? (
+                <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+                  <button onClick={() => setFeedbackGiven("yes")} style={{
+                    flex: 1, padding: "10px", background: COLORS.safeGlow,
+                    border: "1px solid " + COLORS.safe + "66", borderRadius: 10,
+                    color: COLORS.safe, fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: 14, fontWeight: 600, cursor: "pointer"
+                  }}>👍 Yes, correct</button>
+                  <button onClick={() => setFeedbackGiven("no")} style={{
+                    flex: 1, padding: "10px", background: COLORS.accentGlow,
+                    border: "1px solid " + COLORS.accent + "66", borderRadius: 10,
+                    color: COLORS.accent, fontFamily: "'Space Grotesk', sans-serif",
+                    fontSize: 14, fontWeight: 600, cursor: "pointer"
+                  }}>👎 No, wrong</button>
+                </div>
+              ) : (
+                <div style={{
+                  padding: "12px 16px", marginBottom: 20,
+                  background: feedbackGiven === "yes" ? COLORS.safeGlow : COLORS.accentGlow,
+                  borderRadius: 10, fontSize: 14,
+                  color: feedbackGiven === "yes" ? COLORS.safe : COLORS.accent,
+                  fontWeight: 500
+                }}>
+                  {feedbackGiven === "yes" ? "✅ Thanks for confirming! Helping us improve." : "❌ Thanks for the correction! We'll use this to improve accuracy."}
+                </div>
+              )}
 
               <div style={{ height: 20 }} />
               <div className="section-title">Have a question about this?</div>
