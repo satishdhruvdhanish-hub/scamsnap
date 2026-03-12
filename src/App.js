@@ -531,7 +531,7 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
       const clean = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       setResult(parsed);
-      saveToSupabase(userPrompt, parsed.verdict, parsed.scamType, activeTab === 0 ? 'text/email/link' : 'phone');
+      saveToSupabase(userPrompt, parsed.verdict, parsed.scamType, tab === 0 ? 'text/email/link' : 'phone');
     } catch (err) {
       console.error(err);
     }
