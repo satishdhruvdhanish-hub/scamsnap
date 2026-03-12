@@ -441,6 +441,96 @@ const styles = `
     margin-bottom: 16px;
   }
 
+  .report-btn {
+    width: 100%;
+    padding: 14px;
+    background: transparent;
+    border: 1px dashed ${COLORS.border};
+    border-radius: 12px;
+    color: ${COLORS.muted};
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 16px;
+  }
+
+  .report-btn:hover {
+    border-color: ${COLORS.accent}66;
+    color: ${COLORS.accent};
+    background: ${COLORS.accentGlow};
+  }
+
+  .report-form {
+    background: ${COLORS.card};
+    border: 1px solid ${COLORS.border};
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 16px;
+    animation: slideUp 0.3s ease;
+  }
+
+  .report-form h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: ${COLORS.text};
+  }
+
+  .report-form p {
+    font-size: 13px;
+    color: ${COLORS.muted};
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  .form-group {
+    margin-bottom: 14px;
+  }
+
+  select {
+    width: 100%;
+    background: ${COLORS.bg};
+    border: 1px solid ${COLORS.border};
+    border-radius: 10px;
+    color: ${COLORS.text};
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+
+  select:focus { border-color: ${COLORS.accent}66; }
+
+  .submit-report-btn {
+    width: 100%;
+    padding: 14px;
+    background: ${COLORS.accent};
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 20px ${COLORS.accentGlow};
+    margin-top: 4px;
+  }
+
+  .submit-report-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 30px ${COLORS.accentGlow};
+  }
+
+  .submit-report-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
   @media (max-width: 480px) {
     .call-info { grid-template-columns: 1fr; }
     .how-it-works { grid-template-columns: 1fr; }
@@ -461,6 +551,14 @@ export default function ScamSnap() {
   const [copied, setCopied] = useState(false);
   const [followUpAnswer, setFollowUpAnswer] = useState(null);
   const [followUpLoading, setFollowUpLoading] = useState(false);
+
+  // Report a scam state
+  const [showReportForm, setShowReportForm] = useState(false);
+  const [reportContent, setReportContent] = useState("");
+  const [reportPlatform, setReportPlatform] = useState("text/email/link");
+  const [reportScamType, setReportScamType] = useState("Phishing");
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSuccess, setReportSuccess] = useState(false);
 
   const copyVerdict = () => {
     if (!result) return;
@@ -507,6 +605,13 @@ What happened / what they said: ${callDescription}`;
               role: "system",
               content: `You are ScamSnap, an expert scam detection AI. Analyze the input and return ONLY valid JSON with no markdown, no backticks, no extra text.
 
+IMPORTANT RULES:
+- Well-known legitimate domains (amazon.com, google.com, paypal.com, apple.com, microsoft.com, flipkart.com, etc.) are NOT scams by themselves. Only flag them as SCAM if the URL is a lookalike/fake (e.g. amazon-support.xyz, amaz0n.com, google-login.tk).
+- Asking for a credit card on a legitimate e-commerce site (Amazon, eBay, Flipkart, etc.) is NORMAL behavior — do NOT flag this as a scam signal.
+- Judge based on FULL context: urgency language, spelling errors, suspicious domains, unsolicited prize claims, threats, requests for gift cards, wire transfers, OTPs, or personal data are real red flags.
+- A link to the real amazon.com or google.com should be SAFE unless combined with other genuine scam signals.
+- Do not flag normal commercial behavior (ads, checkout pages, login pages on real domains) as scams.
+
 Return this exact structure:
 {
   "verdict": "SCAM" | "SUSPICIOUS" | "SAFE",
@@ -516,10 +621,12 @@ Return this exact structure:
   "flags": [
     { "type": "bad" | "warn" | "good", "text": "<specific flag>" }
   ],
-  "action": "<what the person should do right now>"
+  "action": "<what the person should do right now>",
+  "whyThisIsAScam": "<plain explanation as if to a grandparent, or null if SAFE>",
+  "scamType": "<Phishing | Prize Scam | Impersonation | Tech Support | Romance | Investment | Advance Fee | Safe>"
 }
 
-Be direct, specific, and helpful. Include 4-6 flags with specific details from the actual content. For SAFE verdicts still mention what to watch out for. Also return these extra fields: whyThisIsAScam (plain explanation as if to a grandparent), scamType (e.g. Phishing, Prize Scam, Impersonation, Tech Support, Romance, Investment, Advance Fee, or Safe). IMPORTANT: Detect the language of the input and respond in that same language. If the input is in Spanish, respond in Spanish. If Russian, respond in Russian. If Hindi, respond in Hindi. All fields in the JSON (summary, explanation, whyThisIsAScam, flags, action) must be in the same language as the input.`
+Be direct, specific, and helpful. Include 4-6 flags with specific details from the actual content. For SAFE verdicts still mention what to watch out for. Detect the language of the input and respond in that same language. All JSON fields must be in the same language as the input.`
             },
             { role: "user", content: userPrompt }
           ]
@@ -531,9 +638,10 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
       const clean = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       setResult(parsed);
-      saveToSupabase(userPrompt, parsed.verdict, parsed.scamType, tab === 0 ? 'text/email/link' : 'phone');
+      saveToSupabase(userPrompt, parsed.verdict, parsed.scamType, tab === "text" ? 'text/email/link' : 'phone');
     } catch (err) {
       console.error(err);
+      setError("Analysis failed. Please try again.");
     }
 
     setLoading(false);
@@ -572,6 +680,23 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
       setFollowUpAnswer("Failed to get answer. Please try again.");
     }
     setFollowUpLoading(false);
+  };
+
+  const submitReport = async () => {
+    if (!reportContent.trim()) return;
+    setReportSubmitting(true);
+    try {
+      await saveToSupabase(reportContent, "USER_REPORT", reportScamType, reportPlatform);
+      setReportSuccess(true);
+      setReportContent("");
+      setTimeout(() => {
+        setReportSuccess(false);
+        setShowReportForm(false);
+      }, 3000);
+    } catch (e) {
+      console.error(e);
+    }
+    setReportSubmitting(false);
   };
 
   const canAnalyze = tab === "text"
@@ -654,6 +779,80 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
               {loading && <div className="loading-bar" />}
             </button>
           </div>
+
+          {/* Report a Scam Section */}
+          <button className="report-btn" onClick={() => { setShowReportForm(!showReportForm); setReportSuccess(false); }}>
+            🚩 Encountered a scam? Report it to help others
+          </button>
+
+          {showReportForm && (
+            <div className="report-form">
+              <h3>📢 Report a Scam</h3>
+              <p>Share a scam you've encountered to help protect others in the community.</p>
+
+              {reportSuccess ? (
+                <div style={{
+                  padding: "16px",
+                  background: COLORS.safeGlow,
+                  borderRadius: 10,
+                  color: COLORS.safe,
+                  fontWeight: 600,
+                  fontSize: 15,
+                  textAlign: "center"
+                }}>
+                  ✅ Thank you! Your report has been submitted.
+                </div>
+              ) : (
+                <>
+                  <div className="form-group">
+                    <label className="input-label">Describe the scam message or call</label>
+                    <textarea
+                      placeholder="Paste the scam message, describe the call, or share the suspicious link..."
+                      value={reportContent}
+                      onChange={e => setReportContent(e.target.value)}
+                      style={{ minHeight: 100 }}
+                    />
+                  </div>
+
+                  <div className="call-info">
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">Platform</label>
+                      <select value={reportPlatform} onChange={e => setReportPlatform(e.target.value)}>
+                        <option value="text/email/link">Text / Email / Link</option>
+                        <option value="phone">Phone Call</option>
+                        <option value="whatsapp">WhatsApp</option>
+                        <option value="instagram">Instagram</option>
+                        <option value="facebook">Facebook</option>
+                        <option value="other">Other</option>
+                      </select>
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="input-label">Scam Type</label>
+                      <select value={reportScamType} onChange={e => setReportScamType(e.target.value)}>
+                        <option value="Phishing">Phishing</option>
+                        <option value="Prize Scam">Prize Scam</option>
+                        <option value="Impersonation">Impersonation</option>
+                        <option value="Tech Support">Tech Support</option>
+                        <option value="Romance">Romance Scam</option>
+                        <option value="Investment">Investment Scam</option>
+                        <option value="Advance Fee">Advance Fee</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <button
+                    className="submit-report-btn"
+                    onClick={submitReport}
+                    disabled={reportSubmitting || reportContent.trim().length < 10}
+                  >
+                    {reportSubmitting ? "Submitting..." : "🚩 Submit Report"}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
 
           {error && <div className="error-box">⚠️ {error}</div>}
 
@@ -856,3 +1055,4 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
     </>
   );
 }
+
