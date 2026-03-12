@@ -436,6 +436,9 @@ export default function ScamSnap() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
+  const [followUp, setFollowUp] = useState("");
+  const [followUpAnswer, setFollowUpAnswer] = useState(null);
+  const [followUpLoading, setFollowUpLoading] = useState(false);
 
   const analyze = async () => {
     setLoading(true);
@@ -496,6 +499,41 @@ Be direct, specific, and helpful. Include 3-5 flags. For SAFE verdicts still men
     }
 
     setLoading(false);
+  };
+
+  const askFollowUp = async () => {
+    if (!followUp.trim()) return;
+    setFollowUpLoading(true);
+    setFollowUpAnswer(null);
+    try {
+      const context = tab === "text" ? textInput : `Phone call from ${callerNumber}, claiming to be ${callerClaim}. ${callDescription}`;
+      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${process.env.REACT_APP_GROQ_API_KEY}`
+        },
+        body: JSON.stringify({
+          model: "llama-3.3-70b-versatile",
+          max_tokens: 500,
+          messages: [
+            {
+              role: "system",
+              content: "You are ScamSnap, a scam detection expert. Answer the user's follow-up question about the suspicious content they submitted. Be direct, helpful, and specific. Keep your answer under 100 words."
+            },
+            {
+              role: "user",
+              content: `The suspicious content was: "${context}"\n\nThe verdict was: ${result.verdict} (risk score: ${result.riskScore}/100)\n\nMy question: ${followUp}`
+            }
+          ]
+        })
+      });
+      const data = await response.json();
+      setFollowUpAnswer(data.choices?.[0]?.message?.content || "Sorry, couldn't answer that.");
+    } catch {
+      setFollowUpAnswer("Failed to get answer. Please try again.");
+    }
+    setFollowUpLoading(false);
   };
 
   const canAnalyze = tab === "text"
@@ -624,6 +662,51 @@ Be direct, specific, and helpful. Include 3-5 flags. For SAFE verdicts still men
               <div className={`action-box ${verdictClass}`}>
                 {result.action}
               </div>
+
+              <div style={{ height: 20 }} />
+              <div className="section-title">Have a question about this?</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="e.g. Should I click the link? Is my data safe?"
+                  value={followUp}
+                  onChange={e => setFollowUp(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && askFollowUp()}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  onClick={askFollowUp}
+                  disabled={followUpLoading || !followUp.trim()}
+                  style={{
+                    padding: "12px 16px",
+                    background: COLORS.accent,
+                    color: "white",
+                    border: "none",
+                    borderRadius: 10,
+                    cursor: "pointer",
+                    fontFamily: "'Space Grotesk', sans-serif",
+                    fontWeight: 600,
+                    fontSize: 14,
+                    opacity: followUpLoading || !followUp.trim() ? 0.6 : 1
+                  }}
+                >
+                  {followUpLoading ? "..." : "Ask"}
+                </button>
+              </div>
+              {followUpAnswer && (
+                <div style={{
+                  marginTop: 12,
+                  padding: 14,
+                  background: "rgba(255,255,255,0.05)",
+                  borderRadius: 10,
+                  fontSize: 14,
+                  lineHeight: 1.6,
+                  color: COLORS.text,
+                  borderLeft: `3px solid ${COLORS.accent}`
+                }}>
+                  {followUpAnswer}
+                </div>
+              )}
             </div>
           )}
 
