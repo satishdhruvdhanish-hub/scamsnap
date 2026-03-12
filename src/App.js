@@ -438,8 +438,23 @@ export default function ScamSnap() {
   const [error, setError] = useState(null);
   const [followUp, setFollowUp] = useState("");
   const [feedbackGiven, setFeedbackGiven] = useState(null);
+  const [copied, setCopied] = useState(false);
   const [followUpAnswer, setFollowUpAnswer] = useState(null);
   const [followUpLoading, setFollowUpLoading] = useState(false);
+
+  const copyVerdict = () => {
+    if (!result) return;
+    const text = `ScamSnap Verdict: ${result.verdict} (Risk: ${result.riskScore}/100)
+Scam Type: ${result.scamType || "N/A"}
+Summary: ${result.explanation}
+Why Dangerous: ${result.whyThisIsAScam || "N/A"}
+What To Do: ${result.action}
+
+Checked with ScamSnap: scamsnap.vercel.app`;
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const analyze = async () => {
     setLoading(true);
@@ -699,6 +714,24 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
               <div className={`action-box ${verdictClass}`}>
                 {result.action}
               </div>
+
+              <div style={{ height: 16 }} />
+              <button onClick={copyVerdict} style={{
+                width: "100%",
+                padding: "12px",
+                background: copied ? COLORS.safeGlow : "rgba(255,255,255,0.05)",
+                border: "1px solid " + (copied ? COLORS.safe + "66" : COLORS.border),
+                borderRadius: 10,
+                color: copied ? COLORS.safe : COLORS.muted,
+                fontFamily: "'Space Grotesk', sans-serif",
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "all 0.2s",
+                marginBottom: 4
+              }}>
+                {copied ? "✅ Copied! Share it with someone" : "📋 Copy verdict to share"}
+              </button>
 
               <div style={{ height: 20 }} />
               <div className="section-title">Was this analysis correct?</div>
