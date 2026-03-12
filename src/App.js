@@ -1016,5 +1016,4 @@ Detect the language of the input and respond in that same language. All JSON fie
     </>
   );
 }
-```
 
