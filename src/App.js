@@ -532,7 +532,7 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
       setResult(parsed);
       saveToSupabase(userPrompt, parsed.verdict, parsed.scamType, activeTab === 0 ? 'text/email/link' : 'phone');
     } catch (err) {
-      setError("Analysis failed. Please try again.");
+      console.error(err);
     }
 
     setLoading(false);
