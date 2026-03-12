@@ -1,5 +1,24 @@
 import { useState } from "react";
 
+const SUPABASE_URL = 'https://ymksddhxxlgxzconfwde.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlta3NkZGh4eGxneHpjb25md2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMDA0ODMsImV4cCI6MjA4ODg3NjQ4M30.owLzqyE3EHl3CkP63g2bViwKrAezs8y0puPb9PFB2f4';
+
+const saveToSupabase = async (content, verdict, scamType, platform) => {
+  try {
+    await fetch(SUPABASE_URL + '/rest/v1/scam_patterns', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+      },
+      body: JSON.stringify({ content, verdict, scam_type: scamType, platform })
+    });
+  } catch(e) {
+    console.log('Save failed', e);
+  }
+};
+
 const COLORS = {
   bg: "#0a0a0f",
   card: "#12121a",
@@ -511,6 +530,7 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
       const clean = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       setResult(parsed);
+      saveToSupabase(userPrompt, parsed.verdict, parsed.scamType, activeTab === 0 ? 'text/email/link' : 'phone');
     } catch (err) {
       setError("Analysis failed. Please try again.");
     }
