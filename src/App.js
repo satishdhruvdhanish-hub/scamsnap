@@ -20,6 +20,24 @@ const saveToSupabase = async (content, verdict, scamType, platform) => {
   }
 };
 
+// Scrub sensitive data before sending to API
+const scrubSensitiveData = (text) => {
+  return text
+    .replace(/\b\d{9,18}\b/g, '[ACCOUNT_NUMBER]')        // account/card numbers
+    .replace(/\b\d{4}[\s-]\d{4}[\s-]\d{4}[\s-]\d{4}\b/g, '[CARD_NUMBER]') // credit card
+    .replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/g, '[IFSC_CODE]') // IFSC codes
+    .replace(/\botp\s*[:\-]?\s*\d{4,8}\b/gi, '[OTP]')    // OTP values
+    .replace(/\bpassword\s*[:\-]?\s*\S+/gi, '[PASSWORD]') // passwords
+    .replace(/\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b/g, '[IBAN]'); // IBAN
+};
+
+const getRiskLabel = (score) => {
+  if (score <= 25) return { label: "Very Low Risk", emoji: "🟢", desc: "This looks safe. No significant scam signals detected." };
+  if (score <= 50) return { label: "Low-Medium Risk", emoji: "🟡", desc: "Some minor flags found but likely legitimate. Stay cautious." };
+  if (score <= 75) return { label: "Medium-High Risk", emoji: "🟠", desc: "Several suspicious patterns detected. Verify before taking any action." };
+  return { label: "High Risk", emoji: "🔴", desc: "Strong scam signals detected. Do not click links or share any information." };
+};
+
 const COLORS = {
   bg: "#0a0a0f",
   card: "#12121a",
@@ -120,6 +138,20 @@ const styles = `
     max-width: 400px;
     margin: 0 auto;
     line-height: 1.6;
+  }
+
+  .privacy-banner {
+    background: #1a1505;
+    border: 1px solid ${COLORS.warn}44;
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    font-size: 13px;
+    color: #ffddaa;
+    line-height: 1.5;
   }
 
   .tabs {
@@ -264,6 +296,14 @@ const styles = `
     100% { width: 0%; left: 100%; }
   }
 
+  .privacy-note {
+    font-size: 11px;
+    color: ${COLORS.muted};
+    text-align: center;
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
   .result-card {
     border-radius: 16px;
     padding: 24px;
@@ -302,10 +342,7 @@ const styles = `
     margin-bottom: 20px;
   }
 
-  .verdict-icon {
-    font-size: 36px;
-    line-height: 1;
-  }
+  .verdict-icon { font-size: 36px; line-height: 1; }
 
   .verdict-label {
     font-size: 11px;
@@ -325,13 +362,12 @@ const styles = `
   .verdict-title.safe { color: ${COLORS.safe}; }
   .verdict-title.suspicious { color: ${COLORS.warn}; }
 
-  .risk-bar-container {
-    margin-bottom: 20px;
-  }
+  .risk-bar-container { margin-bottom: 20px; }
 
   .risk-bar-label {
     display: flex;
     justify-content: space-between;
+    align-items: center;
     font-size: 12px;
     color: ${COLORS.muted};
     font-family: 'JetBrains Mono', monospace;
@@ -343,12 +379,32 @@ const styles = `
     background: ${COLORS.border};
     border-radius: 100px;
     overflow: hidden;
+    margin-bottom: 8px;
   }
 
   .risk-bar-fill {
     height: 100%;
     border-radius: 100px;
     transition: width 1s ease;
+  }
+
+  .risk-label-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: 100px;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 6px;
+  }
+
+  .risk-desc {
+    font-size: 13px;
+    color: ${COLORS.muted};
+    line-height: 1.5;
+    font-style: italic;
   }
 
   .section-title {
@@ -425,11 +481,7 @@ const styles = `
     margin-bottom: 6px;
   }
 
-  .step-text {
-    font-size: 12px;
-    color: ${COLORS.muted};
-    line-height: 1.5;
-  }
+  .step-text { font-size: 12px; color: ${COLORS.muted}; line-height: 1.5; }
 
   .error-box {
     background: ${COLORS.accentGlow};
@@ -471,23 +523,10 @@ const styles = `
     animation: slideUp 0.3s ease;
   }
 
-  .report-form h3 {
-    font-size: 16px;
-    font-weight: 600;
-    margin-bottom: 4px;
-    color: ${COLORS.text};
-  }
+  .report-form h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: ${COLORS.text}; }
+  .report-form p { font-size: 13px; color: ${COLORS.muted}; margin-bottom: 20px; line-height: 1.5; }
 
-  .report-form p {
-    font-size: 13px;
-    color: ${COLORS.muted};
-    margin-bottom: 20px;
-    line-height: 1.5;
-  }
-
-  .form-group {
-    margin-bottom: 14px;
-  }
+  .form-group { margin-bottom: 14px; }
 
   select {
     width: 100%;
@@ -526,10 +565,7 @@ const styles = `
     box-shadow: 0 8px 30px ${COLORS.accentGlow};
   }
 
-  .submit-report-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
+  .submit-report-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
   @media (max-width: 480px) {
     .call-info { grid-template-columns: 1fr; }
@@ -551,8 +587,6 @@ export default function ScamSnap() {
   const [copied, setCopied] = useState(false);
   const [followUpAnswer, setFollowUpAnswer] = useState(null);
   const [followUpLoading, setFollowUpLoading] = useState(false);
-
-  // Report a scam state
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportContent, setReportContent] = useState("");
   const [reportPlatform, setReportPlatform] = useState("text/email/link");
@@ -562,7 +596,8 @@ export default function ScamSnap() {
 
   const copyVerdict = () => {
     if (!result) return;
-    const text = `ScamSnap Verdict: ${result.verdict} (Risk: ${result.riskScore}/100)
+    const riskInfo = getRiskLabel(result.riskScore);
+    const text = `ScamSnap Verdict: ${result.verdict} (Risk: ${result.riskScore}/100 — ${riskInfo.label})
 Scam Type: ${result.scamType || "N/A"}
 Summary: ${result.explanation}
 Why Dangerous: ${result.whyThisIsAScam || "N/A"}
@@ -580,14 +615,17 @@ Checked with ScamSnap: scamsnap.vercel.app`;
     setError(null);
     setFeedbackGiven(null);
 
+    const rawContent = tab === "text" ? textInput : callDescription;
+    const scrubbed = scrubSensitiveData(rawContent);
+
     let userPrompt = "";
     if (tab === "text") {
-      userPrompt = `Analyze this message/email/link for scam indicators:\n\n"${textInput}"`;
+      userPrompt = `Analyze this message/email/link for scam indicators:\n\n"${scrubbed}"`;
     } else {
       userPrompt = `Analyze this phone call for scam indicators:
 Phone number: ${callerNumber || "Unknown/Hidden"}
 Caller claimed to be: ${callerClaim || "Not specified"}
-What happened / what they said: ${callDescription}`;
+What happened / what they said: ${scrubbed}`;
     }
 
     try {
@@ -606,11 +644,18 @@ What happened / what they said: ${callDescription}`;
               content: `You are ScamSnap, an expert scam detection AI. Analyze the input and return ONLY valid JSON with no markdown, no backticks, no extra text.
 
 IMPORTANT RULES:
-- Well-known legitimate domains (amazon.com, google.com, paypal.com, apple.com, microsoft.com, flipkart.com, etc.) are NOT scams by themselves. Only flag them as SCAM if the URL is a lookalike/fake (e.g. amazon-support.xyz, amaz0n.com, google-login.tk).
-- Asking for a credit card on a legitimate e-commerce site (Amazon, eBay, Flipkart, etc.) is NORMAL behavior — do NOT flag this as a scam signal.
-- Judge based on FULL context: urgency language, spelling errors, suspicious domains, unsolicited prize claims, threats, requests for gift cards, wire transfers, OTPs, or personal data are real red flags.
-- A link to the real amazon.com or google.com should be SAFE unless combined with other genuine scam signals.
-- Do not flag normal commercial behavior (ads, checkout pages, login pages on real domains) as scams.
+- Well-known legitimate domains (amazon.com, google.com, paypal.com, apple.com, microsoft.com, flipkart.com, sbi.co.in, hdfcbank.com, icicibank.com, axisbank.com, etc.) are NOT scams by themselves. Only flag them as SCAM if the URL is a lookalike/fake (e.g. amazon-support.xyz, amaz0n.com).
+- Official bank SMS messages with transaction alerts, OTP messages, or balance notifications from real banks are NORMAL and should be SAFE with low risk score (under 20).
+- Asking for a credit card on a legitimate e-commerce site is NORMAL behavior — do NOT flag this as a scam signal.
+- Judge based on FULL context: urgency language, spelling errors, suspicious domains, unsolicited prize claims, threats, requests for gift cards, wire transfers, or personal data are real red flags.
+- If something looks like a real bank notification or transaction alert, give it a low risk score (under 25) and mark as SAFE.
+- Placeholders like [ACCOUNT_NUMBER], [OTP], [CARD_NUMBER] in the message mean sensitive data was removed for privacy — do not flag these as suspicious.
+
+Risk score guide:
+- 0-25: Very low risk, almost certainly safe
+- 26-50: Some minor flags, likely legitimate but worth checking
+- 51-75: Multiple suspicious patterns, verify carefully before acting
+- 76-100: Strong scam signals, very likely fraudulent
 
 Return this exact structure:
 {
@@ -626,7 +671,7 @@ Return this exact structure:
   "scamType": "<Phishing | Prize Scam | Impersonation | Tech Support | Romance | Investment | Advance Fee | Safe>"
 }
 
-Be direct, specific, and helpful. Include 4-6 flags with specific details from the actual content. For SAFE verdicts still mention what to watch out for. Detect the language of the input and respond in that same language. All JSON fields must be in the same language as the input.`
+Detect the language of the input and respond in that same language. All JSON fields must be in the same language as the input.`
             },
             { role: "user", content: userPrompt }
           ]
@@ -638,7 +683,7 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
       const clean = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       setResult(parsed);
-      saveToSupabase(userPrompt, parsed.verdict, parsed.scamType, tab === "text" ? 'text/email/link' : 'phone');
+      saveToSupabase(scrubbed, parsed.verdict, parsed.scamType, tab === "text" ? 'text/email/link' : 'phone');
     } catch (err) {
       console.error(err);
       setError("Analysis failed. Please try again.");
@@ -652,7 +697,7 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
     setFollowUpLoading(true);
     setFollowUpAnswer(null);
     try {
-      const context = tab === "text" ? textInput : `Phone call from ${callerNumber}, claiming to be ${callerClaim}. ${callDescription}`;
+      const context = tab === "text" ? scrubSensitiveData(textInput) : `Phone call from ${callerNumber}, claiming to be ${callerClaim}. ${scrubSensitiveData(callDescription)}`;
       const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -686,31 +731,19 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
     if (!reportContent.trim()) return;
     setReportSubmitting(true);
     try {
-      await saveToSupabase(reportContent, "USER_REPORT", reportScamType, reportPlatform);
+      await saveToSupabase(scrubSensitiveData(reportContent), "USER_REPORT", reportScamType, reportPlatform);
       setReportSuccess(true);
       setReportContent("");
-      setTimeout(() => {
-        setReportSuccess(false);
-        setShowReportForm(false);
-      }, 3000);
-    } catch (e) {
-      console.error(e);
-    }
+      setTimeout(() => { setReportSuccess(false); setShowReportForm(false); }, 3000);
+    } catch (e) { console.error(e); }
     setReportSubmitting(false);
   };
 
-  const canAnalyze = tab === "text"
-    ? textInput.trim().length > 10
-    : callDescription.trim().length > 10;
-
-  const verdictClass = result?.verdict?.toLowerCase() === "scam" ? "scam"
-    : result?.verdict?.toLowerCase() === "safe" ? "safe" : "suspicious";
-
-  const verdictIcon = result?.verdict === "SCAM" ? "🚨"
-    : result?.verdict === "SAFE" ? "✅" : "⚠️";
-
-  const riskColor = (result?.riskScore || 0) > 70 ? COLORS.accent
-    : (result?.riskScore || 0) > 40 ? COLORS.warn : COLORS.safe;
+  const canAnalyze = tab === "text" ? textInput.trim().length > 10 : callDescription.trim().length > 10;
+  const verdictClass = result?.verdict?.toLowerCase() === "scam" ? "scam" : result?.verdict?.toLowerCase() === "safe" ? "safe" : "suspicious";
+  const verdictIcon = result?.verdict === "SCAM" ? "🚨" : result?.verdict === "SAFE" ? "✅" : "⚠️";
+  const riskColor = (result?.riskScore || 0) > 75 ? COLORS.accent : (result?.riskScore || 0) > 50 ? COLORS.warn : (result?.riskScore || 0) > 25 ? "#ffcc00" : COLORS.safe;
+  const riskInfo = result ? getRiskLabel(result.riskScore) : null;
 
   return (
     <>
@@ -730,6 +763,14 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
             <p className="subtitle">
               Paste any suspicious message, email, link, or describe a call — we'll tell you if it's a scam instantly.
             </p>
+          </div>
+
+          {/* Privacy Warning Banner */}
+          <div className="privacy-banner">
+            <span style={{ fontSize: 18 }}>🔒</span>
+            <span>
+              <strong>Privacy tip:</strong> Never paste messages containing real account numbers, passwords, OTPs or personal data. ScamSnap automatically removes sensitive numbers, but stay safe — share only what's needed to check for scams.
+            </span>
           </div>
 
           <div className="tabs">
@@ -771,16 +812,14 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
                 />
               </>
             )}
-
             <div style={{ height: 12 }} />
-
             <button className="analyze-btn" onClick={analyze} disabled={loading || !canAnalyze}>
               {loading ? "Analyzing..." : "🔍 Analyze Now"}
               {loading && <div className="loading-bar" />}
             </button>
+            <p className="privacy-note">🔒 Sensitive data is automatically scrubbed before analysis. Powered by Groq AI.</p>
           </div>
 
-          {/* Report a Scam Section */}
           <button className="report-btn" onClick={() => { setShowReportForm(!showReportForm); setReportSuccess(false); }}>
             🚩 Encountered a scam? Report it to help others
           </button>
@@ -788,18 +827,9 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
           {showReportForm && (
             <div className="report-form">
               <h3>📢 Report a Scam</h3>
-              <p>Share a scam you've encountered to help protect others in the community.</p>
-
+              <p>Share a scam you've encountered to help protect others. Sensitive data will be automatically removed before saving.</p>
               {reportSuccess ? (
-                <div style={{
-                  padding: "16px",
-                  background: COLORS.safeGlow,
-                  borderRadius: 10,
-                  color: COLORS.safe,
-                  fontWeight: 600,
-                  fontSize: 15,
-                  textAlign: "center"
-                }}>
+                <div style={{ padding: "16px", background: COLORS.safeGlow, borderRadius: 10, color: COLORS.safe, fontWeight: 600, fontSize: 15, textAlign: "center" }}>
                   ✅ Thank you! Your report has been submitted.
                 </div>
               ) : (
@@ -813,7 +843,6 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
                       style={{ minHeight: 100 }}
                     />
                   </div>
-
                   <div className="call-info">
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="input-label">Platform</label>
@@ -826,7 +855,6 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
                         <option value="other">Other</option>
                       </select>
                     </div>
-
                     <div className="form-group" style={{ marginBottom: 0 }}>
                       <label className="input-label">Scam Type</label>
                       <select value={reportScamType} onChange={e => setReportScamType(e.target.value)}>
@@ -841,12 +869,7 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
                       </select>
                     </div>
                   </div>
-
-                  <button
-                    className="submit-report-btn"
-                    onClick={submitReport}
-                    disabled={reportSubmitting || reportContent.trim().length < 10}
-                  >
+                  <button className="submit-report-btn" onClick={submitReport} disabled={reportSubmitting || reportContent.trim().length < 10}>
                     {reportSubmitting ? "Submitting..." : "🚩 Submit Report"}
                   </button>
                 </>
@@ -871,25 +894,29 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
               <div className="risk-bar-container">
                 <div className="risk-bar-label">
                   <span>Risk Score</span>
-                  <span style={{ color: riskColor }}>{result.riskScore}/100</span>
+                  <span style={{ color: riskColor, fontWeight: 700 }}>{result.riskScore}/100</span>
                 </div>
                 <div className="risk-bar-track">
                   <div className="risk-bar-fill" style={{ width: `${result.riskScore}%`, background: riskColor }} />
                 </div>
+                {riskInfo && (
+                  <>
+                    <div className="risk-label-badge" style={{ background: riskColor + "22", border: `1px solid ${riskColor}44`, color: riskColor }}>
+                      {riskInfo.emoji} {riskInfo.label}
+                    </div>
+                    <p className="risk-desc">{riskInfo.desc}</p>
+                  </>
+                )}
               </div>
 
               {result.scamType && (
                 <div style={{ marginBottom: 16 }}>
                   <span style={{
-                    display: "inline-block",
-                    padding: "4px 12px",
+                    display: "inline-block", padding: "4px 12px",
                     background: verdictClass === "scam" ? COLORS.accentGlow : verdictClass === "safe" ? COLORS.safeGlow : COLORS.warnGlow,
-                    borderRadius: 100,
-                    fontSize: 12,
-                    fontFamily: "'JetBrains Mono', monospace",
+                    borderRadius: 100, fontSize: 12, fontFamily: "'JetBrains Mono', monospace",
                     color: verdictClass === "scam" ? COLORS.accent : verdictClass === "safe" ? COLORS.safe : COLORS.warn,
-                    letterSpacing: "0.05em",
-                    textTransform: "uppercase"
+                    letterSpacing: "0.05em", textTransform: "uppercase"
                   }}>
                     🏷️ {result.scamType}
                   </span>
@@ -902,15 +929,7 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
               {result.whyThisIsAScam && (
                 <div style={{ marginBottom: 20 }}>
                   <div className="section-title">Why This Is Dangerous</div>
-                  <div style={{
-                    padding: "14px 16px",
-                    background: "rgba(255,60,60,0.06)",
-                    borderRadius: 10,
-                    fontSize: 14,
-                    lineHeight: 1.7,
-                    color: COLORS.text,
-                    borderLeft: "3px solid " + COLORS.accent
-                  }}>
+                  <div style={{ padding: "14px 16px", background: "rgba(255,60,60,0.06)", borderRadius: 10, fontSize: 14, lineHeight: 1.7, color: COLORS.text, borderLeft: "3px solid " + COLORS.accent }}>
                     {result.whyThisIsAScam}
                   </div>
                 </div>
@@ -931,24 +950,15 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
               )}
 
               <div className="section-title">What To Do</div>
-              <div className={`action-box ${verdictClass}`}>
-                {result.action}
-              </div>
+              <div className={`action-box ${verdictClass}`}>{result.action}</div>
 
               <div style={{ height: 16 }} />
               <button onClick={copyVerdict} style={{
-                width: "100%",
-                padding: "12px",
+                width: "100%", padding: "12px",
                 background: copied ? COLORS.safeGlow : "rgba(255,255,255,0.05)",
                 border: "1px solid " + (copied ? COLORS.safe + "66" : COLORS.border),
-                borderRadius: 10,
-                color: copied ? COLORS.safe : COLORS.muted,
-                fontFamily: "'Space Grotesk', sans-serif",
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all 0.2s",
-                marginBottom: 4
+                borderRadius: 10, color: copied ? COLORS.safe : COLORS.muted,
+                fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer", transition: "all 0.2s", marginBottom: 4
               }}>
                 {copied ? "✅ Copied! Share it with someone" : "📋 Copy verdict to share"}
               </button>
@@ -957,27 +967,11 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
               <div className="section-title">Was this analysis correct?</div>
               {feedbackGiven === null ? (
                 <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
-                  <button onClick={() => setFeedbackGiven("yes")} style={{
-                    flex: 1, padding: "10px", background: COLORS.safeGlow,
-                    border: "1px solid " + COLORS.safe + "66", borderRadius: 10,
-                    color: COLORS.safe, fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: 14, fontWeight: 600, cursor: "pointer"
-                  }}>👍 Yes, correct</button>
-                  <button onClick={() => setFeedbackGiven("no")} style={{
-                    flex: 1, padding: "10px", background: COLORS.accentGlow,
-                    border: "1px solid " + COLORS.accent + "66", borderRadius: 10,
-                    color: COLORS.accent, fontFamily: "'Space Grotesk', sans-serif",
-                    fontSize: 14, fontWeight: 600, cursor: "pointer"
-                  }}>👎 No, wrong</button>
+                  <button onClick={() => setFeedbackGiven("yes")} style={{ flex: 1, padding: "10px", background: COLORS.safeGlow, border: "1px solid " + COLORS.safe + "66", borderRadius: 10, color: COLORS.safe, fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>👍 Yes, correct</button>
+                  <button onClick={() => setFeedbackGiven("no")} style={{ flex: 1, padding: "10px", background: COLORS.accentGlow, border: "1px solid " + COLORS.accent + "66", borderRadius: 10, color: COLORS.accent, fontFamily: "'Space Grotesk', sans-serif", fontSize: 14, fontWeight: 600, cursor: "pointer" }}>👎 No, wrong</button>
                 </div>
               ) : (
-                <div style={{
-                  padding: "12px 16px", marginBottom: 20,
-                  background: feedbackGiven === "yes" ? COLORS.safeGlow : COLORS.accentGlow,
-                  borderRadius: 10, fontSize: 14,
-                  color: feedbackGiven === "yes" ? COLORS.safe : COLORS.accent,
-                  fontWeight: 500
-                }}>
+                <div style={{ padding: "12px 16px", marginBottom: 20, background: feedbackGiven === "yes" ? COLORS.safeGlow : COLORS.accentGlow, borderRadius: 10, fontSize: 14, color: feedbackGiven === "yes" ? COLORS.safe : COLORS.accent, fontWeight: 500 }}>
                   {feedbackGiven === "yes" ? "✅ Thanks for confirming! Helping us improve." : "❌ Thanks for the correction! We'll use this to improve accuracy."}
                 </div>
               )}
@@ -993,36 +987,12 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
                   onKeyDown={e => e.key === "Enter" && askFollowUp()}
                   style={{ flex: 1 }}
                 />
-                <button
-                  onClick={askFollowUp}
-                  disabled={followUpLoading || !followUp.trim()}
-                  style={{
-                    padding: "12px 16px",
-                    background: COLORS.accent,
-                    color: "white",
-                    border: "none",
-                    borderRadius: 10,
-                    cursor: "pointer",
-                    fontFamily: "'Space Grotesk', sans-serif",
-                    fontWeight: 600,
-                    fontSize: 14,
-                    opacity: followUpLoading || !followUp.trim() ? 0.6 : 1
-                  }}
-                >
+                <button onClick={askFollowUp} disabled={followUpLoading || !followUp.trim()} style={{ padding: "12px 16px", background: COLORS.accent, color: "white", border: "none", borderRadius: 10, cursor: "pointer", fontFamily: "'Space Grotesk', sans-serif", fontWeight: 600, fontSize: 14, opacity: followUpLoading || !followUp.trim() ? 0.6 : 1 }}>
                   {followUpLoading ? "..." : "Ask"}
                 </button>
               </div>
               {followUpAnswer && (
-                <div style={{
-                  marginTop: 12,
-                  padding: 14,
-                  background: "rgba(255,255,255,0.05)",
-                  borderRadius: 10,
-                  fontSize: 14,
-                  lineHeight: 1.6,
-                  color: COLORS.text,
-                  borderLeft: `3px solid ${COLORS.accent}`
-                }}>
+                <div style={{ marginTop: 12, padding: 14, background: "rgba(255,255,255,0.05)", borderRadius: 10, fontSize: 14, lineHeight: 1.6, color: COLORS.text, borderLeft: `3px solid ${COLORS.accent}` }}>
                   {followUpAnswer}
                 </div>
               )}
@@ -1035,18 +1005,9 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
                 How it works
               </p>
               <div className="how-it-works">
-                <div className="step">
-                  <div className="step-num">01</div>
-                  <div className="step-text">Paste text or describe your call</div>
-                </div>
-                <div className="step">
-                  <div className="step-num">02</div>
-                  <div className="step-text">AI analyzes for scam patterns</div>
-                </div>
-                <div className="step">
-                  <div className="step-num">03</div>
-                  <div className="step-text">Get instant verdict & what to do</div>
-                </div>
+                <div className="step"><div className="step-num">01</div><div className="step-text">Paste text or describe your call</div></div>
+                <div className="step"><div className="step-num">02</div><div className="step-text">AI analyzes for scam patterns</div></div>
+                <div className="step"><div className="step-num">03</div><div className="step-text">Get instant verdict & what to do</div></div>
               </div>
             </div>
           )}
@@ -1055,4 +1016,5 @@ Be direct, specific, and helpful. Include 4-6 flags with specific details from t
     </>
   );
 }
+```
 
