@@ -1,25 +1,5 @@
 import { useState } from "react";
 
-const SUPABASE_URL = 'https://ymksddhxxlgxzconfwde.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlta3NkZGh4eGxneHpjb25md2RlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzMDA0ODMsImV4cCI6MjA4ODg3NjQ4M30.owLzqyE3EHl3CkP63g2bViwKrAezs8y0puPb9PFB2f4';
-
-const saveToSupabase = async (content, verdict, scamType, platform) => {
-  try {
-    await fetch(SUPABASE_URL + '/rest/v1/scam_patterns', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': SUPABASE_ANON_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-        'Prefer': 'return=minimal'
-      },
-      body: JSON.stringify({ content, verdict, scam_type: scamType, platform })
-    });
-  } catch(e) {
-    console.log('Save failed', e);
-  }
-};
-
 const scrubSensitiveData = (text) => {
   return text
     .replace(/\b\d{9,18}\b/g, '[ACCOUNT_NUMBER]')
@@ -508,64 +488,6 @@ const styles = `
     margin-bottom: 16px;
   }
 
-  .report-btn {
-    width: 100%;
-    padding: 14px;
-    background: transparent;
-    border: 1px dashed ${COLORS.border};
-    border-radius: 12px;
-    color: ${COLORS.muted};
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-bottom: 16px;
-  }
-
-  .report-btn:hover {
-    border-color: ${COLORS.accent}66;
-    color: ${COLORS.accent};
-    background: ${COLORS.accentGlow};
-  }
-
-  .report-form {
-    background: ${COLORS.card};
-    border: 1px solid ${COLORS.border};
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 16px;
-    animation: slideUp 0.3s ease;
-  }
-
-  .report-form h3 { font-size: 16px; font-weight: 600; margin-bottom: 4px; color: ${COLORS.text}; }
-  .report-form p { font-size: 13px; color: ${COLORS.muted}; margin-bottom: 20px; line-height: 1.5; }
-
-  .form-group { margin-bottom: 14px; }
-
-  .submit-report-btn {
-    width: 100%;
-    padding: 14px;
-    background: ${COLORS.accent};
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-family: 'Space Grotesk', sans-serif;
-    font-size: 15px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    box-shadow: 0 4px 20px ${COLORS.accentGlow};
-    margin-top: 4px;
-  }
-
-  .submit-report-btn:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 8px 30px ${COLORS.accentGlow};
-  }
-
-  .submit-report-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-
   @media (max-width: 480px) {
     .call-info { grid-template-columns: 1fr; }
     .how-it-works { grid-template-columns: 1fr; }
@@ -586,12 +508,6 @@ export default function ScamSnap() {
   const [copied, setCopied] = useState(false);
   const [followUpAnswer, setFollowUpAnswer] = useState(null);
   const [followUpLoading, setFollowUpLoading] = useState(false);
-  const [showReportForm, setShowReportForm] = useState(false);
-  const [reportContent, setReportContent] = useState("");
-  const [reportPlatform, setReportPlatform] = useState("text/email/link");
-  const [reportScamType, setReportScamType] = useState("Phishing");
-  const [reportSubmitting, setReportSubmitting] = useState(false);
-  const [reportSuccess, setReportSuccess] = useState(false);
 
   const copyVerdict = () => {
     if (!result) return;
@@ -682,7 +598,6 @@ Detect the language of the input and respond in that same language. All JSON fie
       const clean = text.replace(/```json|```/g, "").trim();
       const parsed = JSON.parse(clean);
       setResult(parsed);
-      saveToSupabase(scrubbed, parsed.verdict, parsed.scamType, tab === "text" ? 'text/email/link' : 'phone');
     } catch (err) {
       console.error(err);
       setError("Analysis failed. Please try again.");
@@ -724,18 +639,6 @@ Detect the language of the input and respond in that same language. All JSON fie
       setFollowUpAnswer("Failed to get answer. Please try again.");
     }
     setFollowUpLoading(false);
-  };
-
-  const submitReport = async () => {
-    if (!reportContent.trim()) return;
-    setReportSubmitting(true);
-    try {
-      await saveToSupabase(scrubSensitiveData(reportContent), "USER_REPORT", reportScamType, reportPlatform);
-      setReportSuccess(true);
-      setReportContent("");
-      setTimeout(() => { setReportSuccess(false); setShowReportForm(false); }, 3000);
-    } catch (e) { console.error(e); }
-    setReportSubmitting(false);
   };
 
   const canAnalyze = tab === "text" ? textInput.trim().length > 10 : callDescription.trim().length > 10;
@@ -817,63 +720,6 @@ Detect the language of the input and respond in that same language. All JSON fie
             </button>
             <p className="privacy-note">🔒 Your data is never stored or shared with anyone</p>
           </div>
-
-          <button className="report-btn" onClick={() => { setShowReportForm(!showReportForm); setReportSuccess(false); }}>
-            🚩 Encountered a scam? Report it to help others
-          </button>
-
-          {showReportForm && (
-            <div className="report-form">
-              <h3>📢 Report a Scam</h3>
-              <p>Share a scam you've encountered to help protect others. Sensitive data will be automatically removed before saving.</p>
-              {reportSuccess ? (
-                <div style={{ padding: "16px", background: COLORS.safeGlow, borderRadius: 10, color: COLORS.safe, fontWeight: 600, fontSize: 15, textAlign: "center" }}>
-                  ✅ Thank you! Your report has been submitted.
-                </div>
-              ) : (
-                <>
-                  <div className="form-group">
-                    <label className="input-label">Describe the scam message or call</label>
-                    <textarea
-                      placeholder="Paste the scam message, describe the call, or share the suspicious link..."
-                      value={reportContent}
-                      onChange={e => setReportContent(e.target.value)}
-                      style={{ minHeight: 100 }}
-                    />
-                  </div>
-                  <div className="call-info">
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="input-label">Platform</label>
-                      <select value={reportPlatform} onChange={e => setReportPlatform(e.target.value)}>
-                        <option value="text/email/link">Text / Email / Link</option>
-                        <option value="phone">Phone Call</option>
-                        <option value="whatsapp">WhatsApp</option>
-                        <option value="instagram">Instagram</option>
-                        <option value="facebook">Facebook</option>
-                        <option value="other">Other</option>
-                      </select>
-                    </div>
-                    <div className="form-group" style={{ marginBottom: 0 }}>
-                      <label className="input-label">Scam Type</label>
-                      <select value={reportScamType} onChange={e => setReportScamType(e.target.value)}>
-                        <option value="Phishing">Phishing</option>
-                        <option value="Prize Scam">Prize Scam</option>
-                        <option value="Impersonation">Impersonation</option>
-                        <option value="Tech Support">Tech Support</option>
-                        <option value="Romance">Romance Scam</option>
-                        <option value="Investment">Investment Scam</option>
-                        <option value="Advance Fee">Advance Fee</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-                  <button className="submit-report-btn" onClick={submitReport} disabled={reportSubmitting || reportContent.trim().length < 10}>
-                    {reportSubmitting ? "Submitting..." : "🚩 Submit Report"}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
 
           {error && <div className="error-box">⚠️ {error}</div>}
 
@@ -1014,5 +860,3 @@ Detect the language of the input and respond in that same language. All JSON fie
     </>
   );
 }
-
-
