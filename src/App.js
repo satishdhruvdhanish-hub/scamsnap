@@ -20,15 +20,14 @@ const saveToSupabase = async (content, verdict, scamType, platform) => {
   }
 };
 
-// Scrub sensitive data before sending to API
 const scrubSensitiveData = (text) => {
   return text
-    .replace(/\b\d{9,18}\b/g, '[ACCOUNT_NUMBER]')        // account/card numbers
-    .replace(/\b\d{4}[\s-]\d{4}[\s-]\d{4}[\s-]\d{4}\b/g, '[CARD_NUMBER]') // credit card
-    .replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/g, '[IFSC_CODE]') // IFSC codes
-    .replace(/\botp\s*[:\-]?\s*\d{4,8}\b/gi, '[OTP]')    // OTP values
-    .replace(/\bpassword\s*[:\-]?\s*\S+/gi, '[PASSWORD]') // passwords
-    .replace(/\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b/g, '[IBAN]'); // IBAN
+    .replace(/\b\d{9,18}\b/g, '[ACCOUNT_NUMBER]')
+    .replace(/\b\d{4}[\s-]\d{4}[\s-]\d{4}[\s-]\d{4}\b/g, '[CARD_NUMBER]')
+    .replace(/\b[A-Z]{4}0[A-Z0-9]{6}\b/g, '[IFSC_CODE]')
+    .replace(/\botp\s*[:\-]?\s*\d{4,8}\b/gi, '[OTP]')
+    .replace(/\bpassword\s*[:\-]?\s*\S+/gi, '[PASSWORD]')
+    .replace(/\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7}([A-Z0-9]?){0,16}\b/g, '[IBAN]');
 };
 
 const getRiskLabel = (score) => {
@@ -213,7 +212,7 @@ const styles = `
 
   textarea {
     width: 100%;
-    background: ${COLORS.bg};
+    background: #16161f;
     border: 1px solid ${COLORS.border};
     border-radius: 10px;
     color: ${COLORS.text};
@@ -232,7 +231,7 @@ const styles = `
 
   input[type="text"] {
     width: 100%;
-    background: ${COLORS.bg};
+    background: #16161f;
     border: 1px solid ${COLORS.border};
     border-radius: 10px;
     color: ${COLORS.text};
@@ -245,6 +244,22 @@ const styles = `
 
   input[type="text"]:focus { border-color: ${COLORS.accent}66; }
   input[type="text"]::placeholder { color: ${COLORS.muted}; }
+
+  select {
+    width: 100%;
+    background: #16161f;
+    border: 1px solid ${COLORS.border};
+    border-radius: 10px;
+    color: ${COLORS.text};
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    padding: 12px 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    cursor: pointer;
+  }
+
+  select:focus { border-color: ${COLORS.accent}66; }
 
   .call-info {
     display: grid;
@@ -528,22 +543,6 @@ const styles = `
 
   .form-group { margin-bottom: 14px; }
 
-  select {
-    width: 100%;
-    background: ${COLORS.bg};
-    border: 1px solid ${COLORS.border};
-    border-radius: 10px;
-    color: ${COLORS.text};
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 14px;
-    padding: 12px 14px;
-    outline: none;
-    transition: border-color 0.2s;
-    cursor: pointer;
-  }
-
-  select:focus { border-color: ${COLORS.accent}66; }
-
   .submit-report-btn {
     width: 100%;
     padding: 14px;
@@ -765,7 +764,6 @@ Detect the language of the input and respond in that same language. All JSON fie
             </p>
           </div>
 
-          {/* Privacy Warning Banner */}
           <div className="privacy-banner">
             <span style={{ fontSize: 18 }}>🔒</span>
             <span>
@@ -817,7 +815,7 @@ Detect the language of the input and respond in that same language. All JSON fie
               {loading ? "Analyzing..." : "🔍 Analyze Now"}
               {loading && <div className="loading-bar" />}
             </button>
-            <p className="privacy-note">🔒 Sensitive data is automatically scrubbed before analysis. Powered by Groq AI.</p>
+            <p className="privacy-note">🔒 Your data is never stored or shared with anyone</p>
           </div>
 
           <button className="report-btn" onClick={() => { setShowReportForm(!showReportForm); setReportSuccess(false); }}>
@@ -1016,4 +1014,5 @@ Detect the language of the input and respond in that same language. All JSON fie
     </>
   );
 }
+
 
