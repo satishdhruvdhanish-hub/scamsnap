@@ -544,11 +544,10 @@ What happened / what they said: ${scrubbed}`;
     }
 
     try {
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.REACT_APP_GROQ_API_KEY}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
@@ -612,11 +611,10 @@ Detect the language of the input and respond in that same language. All JSON fie
     setFollowUpAnswer(null);
     try {
       const context = tab === "text" ? scrubSensitiveData(textInput) : `Phone call from ${callerNumber}, claiming to be ${callerClaim}. ${scrubSensitiveData(callDescription)}`;
-      const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      const response = await fetch("/api/analyze", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.REACT_APP_GROQ_API_KEY}`
+          "Content-Type": "application/json"
         },
         body: JSON.stringify({
           model: "llama-3.3-70b-versatile",
@@ -860,3 +858,4 @@ Detect the language of the input and respond in that same language. All JSON fie
     </>
   );
 }
+
