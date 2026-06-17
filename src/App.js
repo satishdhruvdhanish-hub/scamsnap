@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Analytics } from '@vercel/analytics/react';
 
 const scrubSensitiveData = (text) => {
   return text
@@ -856,6 +857,7 @@ Detect the language of the input and respond in that same language. All JSON fie
           )}
         </div>
       </div>
+      <Analytics />
     </>
   );
 }
